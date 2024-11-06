@@ -1,0 +1,121 @@
+---
+title: "Exploración de datos"
+author: "Alexandre Lozano"
+date: "2024-11-05"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+En primer lugar, se instala el paquete "metabolomicsWorkbenchR" siguiendo lo oden mostrada en: <https://www.bioconductor.org/packages/release/bioc/html/metabolomicsWorkbenchR.html>
+
+```{r}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("metabolomicsWorkbenchR")
+```
+
+Se importan las librerias necesarias para realizar la exploración de datos del SummarizedExperiment.
+
+```{r}
+library(metabolomicsWorkbenchR)
+library(SummarizedExperiment)
+library(Biobase)
+library(GenomeInfoDb)
+library(pheatmap)
+```
+
+Se obtienen los datos del estudio ST000002 de Metabolomics Workbench, que correspnde a 2023-UGrX-4MetaboAnalystTutorial de los datasets proporcionados en el repositorio nutrimetabolomics de GitHub. Se importan mediante la instrucción encontrada en el el apartado output_item “SummarizedExperiment” and “DatasetExperiment” de Introduction to metabolomicsWorkbenchR del siguiente link: <https://www.bioconductor.org/packages/release/bioc/vignettes/metabolomicsWorkbenchR/inst/doc/Introduction_to_metabolomicsWorkbenchR.html>
+
+```{r}
+SE = do_query(
+    context = 'study',
+    input_item = 'study_id',
+    input_value = 'ST000002',
+    output_item = 'SummarizedExperiment' #
+)
+
+SE
+```
+
+Se procede a realizar una exploración del dataset a trveés de distintas funciones de SummarizedExperiment de la web "SummarizedExperiment for Coordinating Experimental Assays, Samples, and Regions of Interest" con el siguiente link:
+
+<https://bioconductor.org/packages/release/bioc/vignettes/SummarizedExperiment/inst/doc/SummarizedExperiment.html#common-operations-on-summarizedexperiment>
+
+Aunque anteriormente ya aparecen las dimensiones del SummarizedExperiment, se aplican funciones mas especificas para ver su número, siendo de 12 columnas, muestras, y 142 filas, metabolitos.
+
+```{r}
+dim(SE)
+ncol(SE)
+nrow(SE)
+```
+
+Al realizar la función head del colData, información de las muestras, únicamente aparecen las 6 primeras, siendo todas ellas anteriores al transplante. Las otras 6 muestras, puesto que en total son 12 como hemos visto anteriormente, son posteriores al trasnplante como se puede ver en la tabla creada, donde se criban los datos en función de la variable "Transplantation". Finalmente, aparecen los nombres de todas los nombres de las muestras con la función "colnames".
+
+```{r}
+head(colData(SE))
+table(colData(SE)$Transplantation)
+colnames(SE)
+```
+
+Se mira el contenido de rowData, para ver qué información está disponible sobre cada metabolito, apareciendo los 5 primeros y últimos.
+
+```{r}
+rowData(SE)
+```
+
+Se muestran los nombres de los 12 primeros metabolitos, apareciendo sus códigos, su id, con lo que se filtran por "metabolite_name" para que aparezca el nombre del metabolito al que pertenece. Se realiza lo mismo para los 12 últimos metabolitos.
+
+```{r}
+head(rownames(SE), 12)
+head(rowData(SE)$metabolite_name, 12)
+
+tail(rownames(SE), 12)
+tail(rowData(SE)$metabolite_name, 12)
+```
+
+Para explorar el contenido de las mediciones, al contener mucha información, 12 muestras, únicamente se seleccionan 4 de ellas, las dos primeras de "pre/post transplantation" y para los 6 primeros metabolitos con la función head.
+
+```{r}
+head(assay(SE)[, c(1, 2, 7, 8)])
+```
+
+Se realiza la operación anterior, pero para los 6 últimos metabolitos con la función tail.
+
+```{r}
+tail(assay(SE)[, c(1, 2, 7, 8)])
+```
+
+Se calcula la media, mediana, desviaciión estandar, mínimo y máximo de cada uno de los metabolitos en las 12 muestras. Se representan en primer lugar, los 6 primeros metabolitos con la función head, puesto que hay 142 metabolitos y al ser demasiaos solo se escogen los primeros.
+
+```{r}
+resumen_metabolitos <- apply(assay(SE), 1, function(x) {
+  c(media = mean(x, na.rm = TRUE),
+    mediana = median(x, na.rm = TRUE),
+    desviacion_estandar = sd(x, na.rm = TRUE),
+    minimo = min(x, na.rm = TRUE),
+    maximo = max(x, na.rm = TRUE))
+})
+resumen_metabolitos <- as.data.frame(t(resumen_metabolitos))
+head(resumen_metabolitos)
+```
+
+Se representan la media, medaina, desviación estandar, mínimo y máximo de los 6 últimos metabolitos con tail, con tal de ver 6 metabolitos más de los 142 presentes.
+
+```{r}
+tail(resumen_metabolitos)
+```
+
+Se realiza la correlación de las 12 muestras en función de la similtud de las mediciones de sus mediciones con la función cor() y se representan con un heatmap.
+
+```{r}
+correlacion <- cor(assay(SE))
+pheatmap(correlacion, main = "Heatmap de correlación entre muestras")
+```
+
+Finalmente, se observan los metadatos del estudio apareciendo datos de este como la fuente, su id o su descripción.
+
+```{r}
+metadata(SE)
+```
